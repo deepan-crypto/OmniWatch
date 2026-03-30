@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import PaytmAdGenerator from './PaytmAdGenerator';
 
@@ -8,6 +8,8 @@ export default function PaytmEnvironment() {
   const [userMode, setUserMode] = useState('home'); // home, scout, vyapar, deals, profile
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
   
   // Vyapar AI State
   const [proactiveAlert, setProactiveAlert] = useState(null);
@@ -21,6 +23,9 @@ export default function PaytmEnvironment() {
     footTraffic: 'low',
     hour: new Date().getHours()
   });
+  const [merchantDescription, setMerchantDescription] = useState('');
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingText, setRecordingText] = useState('');
 
   // Scout AI State
   const [consumerQuery, setConsumerQuery] = useState('I want spicy food near me');
@@ -38,6 +43,43 @@ export default function PaytmEnvironment() {
     { id: 'item_003', name: 'Garlic Naan', category: 'bread', price: 60, quantity: 120, margin: 35 },
     { id: 'item_004', name: 'Chicken Biryani', category: 'rice', price: 350, quantity: 45, margin: 50 }
   ];
+
+  // 🎤 Voice Recording Functions
+  const startVoiceRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.addEventListener('dataavailable', event => {
+        audioChunksRef.current.push(event.data);
+      });
+
+      mediaRecorder.addEventListener('stop', () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
+        const audioUrl = URL.createObjectURL(audioBlob);
+        // In production, send to speech-to-text API (Google Speech-to-Text or Whisper)
+        // For now, show recording completed
+        setRecordingText('🎙️ Voice recorded (speech-to-text coming soon)');
+      });
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      setRecordingText('🔴 Recording in progress...');
+    } catch (err) {
+      console.error('Microphone access denied:', err);
+      alert('Please allow microphone access to record voice');
+    }
+  };
+
+  const stopVoiceRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+      setIsRecording(false);
+    }
+  };
 
   useEffect(() => {
     if (userMode === 'deals') {
@@ -66,7 +108,8 @@ export default function PaytmEnvironment() {
           historicalAverage: paytmMetrics.historicalAverage
         },
         realTimeContext: contextData,
-        inventorySurplus
+        inventorySurplus,
+        merchantDescription: merchantDescription.trim() || null
       });
 
       const alertData = response.data.result;
@@ -403,6 +446,92 @@ export default function PaytmEnvironment() {
                   <option value="moderate">➡️ Moderate - Standard promotions</option>
                   <option value="high">📈 High - Focus on high-margin items</option>
                 </select>
+              </div>
+            </div>
+
+            {/* 🎤 Merchant Offer Description Box */}
+            <div style={{ backgroundColor: '#f9f9f9', padding: '20px', borderRadius: '12px', border: '2px solid #FF6B35', marginBottom: '20px' }}>
+              <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', color: '#FF6B35' }}>📝 Describe Your Special Offer (Optional)</h3>
+              <p style={{ margin: '0 0 12px 0', fontSize: '12px', color: '#666' }}>Help Vyapar AI understand your special offer better. You can explain in text or use voice!</p>
+              
+              {/* Text Input Area */}
+              <textarea
+                value={merchantDescription}
+                onChange={(e) => setMerchantDescription(e.target.value)}
+                placeholder="e.g., 'We have extra biryani stock today, usually ₹350, willing to give 40% discount for bulk orders. Very fresh, cooked this morning and need to move inventory quickly.'"
+                style={{
+                  width: '100%',
+                  minHeight: '100px',
+                  padding: '12px',
+                  marginBottom: '12px',
+                  fontSize: '13px',
+                  borderRadius: '8px',
+                  border: '1px solid #ddd',
+                  fontFamily: 'Arial, sans-serif',
+                  resize: 'vertical'
+                }}
+              />
+
+              {/* Voice Recording Section */}
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+                <button
+                  onClick={isRecording ? stopVoiceRecording : startVoiceRecording}
+                  style={{
+                    flex: 1,
+                    padding: '12px',
+                    backgroundColor: isRecording ? '#c62828' : '#FF6B35',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    fontSize: '13px',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.opacity = '0.9'}
+                  onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
+                >
+                  {isRecording ? '🛑 Stop Recording' : '🎤 Record Voice'}
+                </button>
+                
+                <button
+                  onClick={() => {
+                    setMerchantDescription('');
+                    setRecordingText('');
+                  }}
+                  style={{
+                    padding: '12px 16px',
+                    backgroundColor: '#999',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    fontSize: '13px'
+                  }}
+                >
+                  🗑️ Clear
+                </button>
+              </div>
+
+              {/* Recording Status */}
+              {recordingText && (
+                <div style={{
+                  backgroundColor: isRecording ? '#ffebee' : '#e8f5e9',
+                  padding: '12px',
+                  borderRadius: '6px',
+                  marginBottom: '12px',
+                  fontSize: '12px',
+                  color: isRecording ? '#c62828' : '#2e7d32',
+                  fontWeight: 'bold'
+                }}>
+                  {recordingText}
+                </div>
+              )}
+
+              {/* Character Count */}
+              <div style={{ fontSize: '11px', color: '#999', marginTop: '8px' }}>
+                {merchantDescription.length} characters • Optional field
               </div>
             </div>
 
