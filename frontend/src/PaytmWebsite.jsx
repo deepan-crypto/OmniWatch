@@ -396,7 +396,7 @@ export default function PaytmWebsite() {
       {/* Footer */}
       <footer style={{ backgroundColor: '#002970', color: 'white', padding: '40px 24px', textAlign: 'center', marginTop: '60px' }}>
         <p style={{ margin: '0 0 12px 0' }}>🚀 Paytm OmniMatch - AI-Powered Local Commerce Ecosystem</p>
-        <p style={{ margin: '0', fontSize: '12px', opacity: 0.8' }}> Backend: Node.js + Express | AI: Python FastAPI + Gemini | Frontend: React + Vite </p>
+        <p style={{ margin: '0', fontSize: '12px', opacity: 0.8 }}>Backend: Node.js + Express | AI: Python FastAPI + Gemini | Frontend: React + Vite</p>
       </footer>
     </div>
   );
