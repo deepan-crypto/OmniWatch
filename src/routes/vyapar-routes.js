@@ -116,6 +116,41 @@ function initVyaparRoutes(vyaparAI) {
     }
   });
 
+  // Proactive sales drop alert with flash deal recommendation
+  router.post("/merchant/proactive-alert", (req, res) => {
+    try {
+      const { merchantName, paytmGatewayData, realTimeContext, inventorySurplus } = req.body;
+
+      if (!merchantName || !paytmGatewayData || !realTimeContext || !inventorySurplus) {
+        return res.status(400).json({
+          error: "Missing required fields: merchantName, paytmGatewayData, realTimeContext, inventorySurplus",
+        });
+      }
+
+      // Validate paytmGatewayData
+      if (!paytmGatewayData.currentTransactions || !paytmGatewayData.historicalAverage) {
+        return res.status(400).json({
+          error: "paytmGatewayData must contain currentTransactions and historicalAverage",
+        });
+      }
+
+      const alertResponse = vyaparAI.generateProactiveAlert(
+        paytmGatewayData,
+        realTimeContext,
+        inventorySurplus,
+        merchantName
+      );
+
+      res.json({
+        success: true,
+        message: "Proactive alert generated successfully",
+        result: alertResponse,
+      });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   return router;
 }
 
