@@ -119,7 +119,7 @@ function initVyaparRoutes(vyaparAI) {
   // Proactive sales drop alert with flash deal recommendation
   router.post("/merchant/proactive-alert", (req, res) => {
     try {
-      const { merchantName, paytmGatewayData, realTimeContext, inventorySurplus } = req.body;
+      const { merchantName, paytmGatewayData, realTimeContext, inventorySurplus, merchantDescription } = req.body;
 
       if (!merchantName || !paytmGatewayData || !realTimeContext || !inventorySurplus) {
         return res.status(400).json({
@@ -138,7 +138,8 @@ function initVyaparRoutes(vyaparAI) {
         paytmGatewayData,
         realTimeContext,
         inventorySurplus,
-        merchantName
+        merchantName,
+        merchantDescription || null
       );
 
       res.json({

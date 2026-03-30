@@ -166,7 +166,7 @@ class VyaparAI {
     );
   }
 
-  generateProactiveAlert(paytmGatewayData, realTimeContext, inventorySurplus, merchantName) {
+  generateProactiveAlert(paytmGatewayData, realTimeContext, inventorySurplus, merchantName, merchantDescription = null) {
     // Analyze the sales drop
     const { dropPercentage, isSevere } = this.analyzeSalesDrop(
       paytmGatewayData.currentTransactions,
@@ -197,18 +197,27 @@ class VyaparAI {
       clear: "unexpected low sales despite good weather",
     };
 
-    const agentReasoning =
+    // Enhanced reasoning with merchant description if provided
+    let agentReasoning =
       `Detected a ${dropPercentage.toFixed(1)}% drop in Paytm transactions. ` +
       `${weatherReason[realTimeContext.weather] || "sales patterns show a decline"}. ` +
       `${selectedItem.name} has high inventory surplus (${selectedItem.quantity} units). ` +
       `Offering ${discountInfo.offerText} to drive quick conversions and recover revenue.`;
+    
+    if (merchantDescription && merchantDescription.trim()) {
+      agentReasoning += ` Additionally, merchant context: "${merchantDescription}"`;
+    }
 
     // Generate notification message
-    const notificationMessage =
+    let notificationMessage =
       `👋 Hey! I noticed your Paytm scans are down ${dropPercentage.toFixed(1)}% today. ` +
       `${realTimeContext.weather === "rainy" ? "The rain might be keeping customers away." : ""} ` +
       `Let me help! I'm suggesting a flash deal on ${selectedItem.name}: ${discountInfo.offerText}. ` +
       `This should attract customers back. Ready to launch? 🚀`;
+    
+    if (merchantDescription && merchantDescription.trim()) {
+      notificationMessage += ` You mentioned: "${merchantDescription.substring(0, 100)}..."`;
+    }
 
     // Generate DALL-E prompt
     const dallePrompt = this.generateDALLEPrompt(
@@ -224,6 +233,7 @@ class VyaparAI {
       selected_item: selectedItem.name,
       discount_offer: discountInfo.offerText,
       dalle_background_prompt: dallePrompt,
+      merchant_description: merchantDescription || null,
     };
   }
 }
