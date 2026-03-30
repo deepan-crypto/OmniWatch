@@ -3,8 +3,8 @@ const express = require("express");
 const cors = require("cors");
 const VyaparAI = require("./src/agents/vyapar-ai");
 const ScoutAI = require("./src/agents/scout-ai");
-const VyaparMonitor = require("./src/services/vyapar-monitor");
-const WeatherService = require("./src/services/weather-service");
+// const VyaparMonitor = require("./src/services/vyapar-monitor");  // REPLACED BY PYTHON VERSION
+// const WeatherService = require("./src/services/weather-service");  // REPLACED BY PYTHON VERSION
 const initVyaparRoutes = require("./src/routes/vyapar-routes");
 const initScoutRoutes = require("./src/routes/scout-routes");
 
@@ -27,7 +27,7 @@ if (!geminiApiKey) {
 
 const vyaparAI = new VyaparAI(geminiApiKey);
 const scoutAI = new ScoutAI(geminiApiKey);
-const vyaparMonitor = new VyaparMonitor(vyaparAI);
+// const vyaparMonitor = new VyaparMonitor(vyaparAI);  // REMOVED - Now using Python version
 
 // Register test merchants
 vyaparAI.registerMerchant("merchant_coimbatore_001", {
@@ -51,12 +51,13 @@ vyaparAI.registerMerchant("merchant_bangalore_001", {
   ],
 });
 
-// 🚀 START AUTOMATED MONITORING FOR ALL MERCHANTS
-vyaparMonitor.startMonitoringMerchant("merchant_coimbatore_001", "Coimbatore Spice House", WeatherService);
-vyaparMonitor.startMonitoringMerchant("merchant_bangalore_001", "Bangalore Brew Co", WeatherService);
-console.log("\n✅ VYAPAR AI AUTOMATED PIPELINE STARTED");
-console.log("   → Monitoring merchants every 5 minutes");
-console.log("   → Auto-detects sales drops and generates deals\n");
+// 🚀 AUTOMATED MONITORING NOW RUNS IN PYTHON (vyapar_monitor.py)
+// The Python service uses APScheduler to run every 5 minutes
+// Replaces old node-schedule implementation
+console.log("\n✅ VYAPAR AI SETUP COMPLETE");
+console.log("   → Python service (port 8000) handles automated monitoring");
+console.log("   → Uses APScheduler instead of node-schedule");
+console.log("   → Scheduled jobs trigger every 5 minutes\n");
 
 
 // Routes
