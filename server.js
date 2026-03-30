@@ -3,6 +3,8 @@ const express = require("express");
 const cors = require("cors");
 const VyaparAI = require("./src/agents/vyapar-ai");
 const ScoutAI = require("./src/agents/scout-ai");
+const VyaparMonitor = require("./src/services/vyapar-monitor");
+const WeatherService = require("./src/services/weather-service");
 const initVyaparRoutes = require("./src/routes/vyapar-routes");
 const initScoutRoutes = require("./src/routes/scout-routes");
 
@@ -25,6 +27,7 @@ if (!geminiApiKey) {
 
 const vyaparAI = new VyaparAI(geminiApiKey);
 const scoutAI = new ScoutAI(geminiApiKey);
+const vyaparMonitor = new VyaparMonitor(vyaparAI);
 
 // Register test merchants
 vyaparAI.registerMerchant("merchant_coimbatore_001", {
@@ -32,9 +35,9 @@ vyaparAI.registerMerchant("merchant_coimbatore_001", {
   location: "Coimbatore",
   category: "Indian Restaurant",
   inventory: [
-    { id: "item_001", name: "Gobi Manchurian", quantity: 100, basePrice: 250 },
-    { id: "item_002", name: "Biryani", quantity: 60, basePrice: 350 },
-    { id: "item_003", name: "Dosa", quantity: 150, basePrice: 150 },
+    { id: "item_001", name: "Gobi Manchurian", quantity: 100, basePrice: 250, margin: 40 },
+    { id: "item_002", name: "Biryani", quantity: 60, basePrice: 350, margin: 50 },
+    { id: "item_003", name: "Dosa", quantity: 150, basePrice: 150, margin: 35 },
   ],
 });
 
@@ -43,14 +46,58 @@ vyaparAI.registerMerchant("merchant_bangalore_001", {
   location: "Bangalore",
   category: "Cafe",
   inventory: [
-    { id: "item_101", name: "Cappuccino", quantity: 200, basePrice: 150 },
-    { id: "item_102", name: "Cold Brew", quantity: 120, basePrice: 180 },
+    { id: "item_101", name: "Cappuccino", quantity: 200, basePrice: 150, margin: 45 },
+    { id: "item_102", name: "Cold Brew", quantity: 120, basePrice: 180, margin: 50 },
   ],
 });
+
+// 🚀 START AUTOMATED MONITORING FOR ALL MERCHANTS
+vyaparMonitor.startMonitoringMerchant("merchant_coimbatore_001", "Coimbatore Spice House", WeatherService);
+vyaparMonitor.startMonitoringMerchant("merchant_bangalore_001", "Bangalore Brew Co", WeatherService);
+console.log("\n✅ VYAPAR AI AUTOMATED PIPELINE STARTED");
+console.log("   → Monitoring merchants every 5 minutes");
+console.log("   → Auto-detects sales drops and generates deals\n");
+
 
 // Routes
 app.use("/api/vyapar", initVyaparRoutes(vyaparAI));
 app.use("/api/scout", initScoutRoutes(scoutAI));
+
+// 📊 MONITORING STATUS ENDPOINT
+app.get("/api/vyapar/monitor/status", (req, res) => {
+  const status = vyaparMonitor.getStatus();
+  res.json({
+    success: true,
+    monitoring: status,
+    message: "Vyapar AI Monitor Status",
+  });
+});
+
+// ⏹️ STOP MONITORING
+app.post("/api/vyapar/monitor/stop/:merchantId", (req, res) => {
+  const { merchantId } = req.params;
+  vyaparMonitor.stopMonitoringMerchant(merchantId);
+  res.json({
+    success: true,
+    message: `Monitoring stopped for merchant: ${merchantId}`,
+  });
+});
+
+// ▶️ START MONITORING
+app.post("/api/vyapar/monitor/start/:merchantId", (req, res) => {
+  const { merchantId } = req.params;
+  const merchant = vyaparAI.merchants.get(merchantId);
+  
+  if (!merchant) {
+    return res.status(404).json({ error: "Merchant not found" });
+  }
+
+  vyaparMonitor.startMonitoringMerchant(merchantId, merchant.name, WeatherService);
+  res.json({
+    success: true,
+    message: `Monitoring started for merchant: ${merchant.name}`,
+  });
+});
 
 // Health check
 app.get("/health", (req, res) => {
