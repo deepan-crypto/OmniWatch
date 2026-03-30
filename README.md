@@ -1,4 +1,4 @@
-# 💰 Paytm OmniMatch - Dual-Agent Local Commerce Ecosystem
+# 💰 OmniMatch - Dual-Agent Local Commerce Ecosystem
 
 A production-ready, AI-powered marketplace solution combining merchant flash deals with consumer-centric recommendations.
 
