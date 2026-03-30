@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import './App.css';
 import MerchantDashboard from './MerchantDashboard';
 import ScoutUI from './ScoutUI';
+import PaytmEnvironment from './PaytmEnvironment';
 
 function App() {
-  const [activeTab, setActiveTab] = useState('scout');
+  const [activeTab, setActiveTab] = useState('paytm');
 
   return (
     <div className="app">
@@ -15,6 +16,12 @@ function App() {
         </div>
 
         <div className="navbar-tabs">
+          <button
+            className={`tab-button ${activeTab === 'paytm' ? 'active' : ''}`}
+            onClick={() => setActiveTab('paytm')}
+          >
+            📱 Paytm Environment
+          </button>
           <button
             className={`tab-button ${activeTab === 'scout' ? 'active' : ''}`}
             onClick={() => setActiveTab('scout')}
@@ -31,6 +38,7 @@ function App() {
       </div>
 
       <main className="main-content">
+        {activeTab === 'paytm' && <PaytmEnvironment />}
         {activeTab === 'scout' && <ScoutUI />}
         {activeTab === 'vyapar' && <MerchantDashboard />}
       </main>
