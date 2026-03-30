@@ -87,6 +87,145 @@ class VyaparAI {
       ...customTelemetry,
     });
   }
+
+  analyzeSalesDrop(currentTransactions, historicalAverage) {
+    const dropPercentage = ((historicalAverage - currentTransactions) / historicalAverage) * 100;
+    const isSevere = dropPercentage > 30;
+    return { dropPercentage, isSevere };
+  }
+
+  selectBestItemForPromotion(inventorySurplus, realTimeContext) {
+    if (!inventorySurplus || inventorySurplus.length === 0) {
+      return null;
+    }
+
+    // Score items based on context (weather, time, traffic patterns)
+    const scoredItems = inventorySurplus.map((item) => {
+      let score = item.quantity; // Higher quantity = higher priority
+
+      // Weather-based scoring
+      if (realTimeContext.weather === "rainy" && item.category === "beverages") {
+        score *= 1.5; // Hot drinks in rainy weather
+      }
+      if (realTimeContext.weather === "hot" && item.category === "cold_drinks") {
+        score *= 1.5;
+      }
+
+      // Time-based scoring
+      const hour = realTimeContext.hour || new Date().getHours();
+      if (hour >= 12 && hour < 14 && item.category === "food") {
+        score *= 1.3; // Lunch time
+      }
+
+      // Traffic-based scoring
+      if (realTimeContext.footTraffic === "low" && item.margin > 30) {
+        score *= 1.4; // Higher margin items when traffic is low
+      }
+
+      return { ...item, score };
+    });
+
+    // Return the highest-scored item
+    return scoredItems.sort((a, b) => b.score - a.score)[0];
+  }
+
+  generateDiscountOffer(item, urgency = "moderate") {
+    const baseDiscount = Math.floor(item.margin * 0.6); // Offer 60% of margin as discount
+    
+    if (urgency === "critical") {
+      return {
+        discountPercentage: Math.min(baseDiscount + 10, 50),
+        offerText: `Flat ₹${Math.round(item.price * (baseDiscount + 10) / 100)} OFF`,
+      };
+    }
+    
+    return {
+      discountPercentage: baseDiscount,
+      offerText: `Flat ₹${Math.round(item.price * baseDiscount / 100)} OFF`,
+    };
+  }
+
+  generateDALLEPrompt(item, weather, merchantName) {
+    const basePrompt = `High-quality promotional food photography for ${item.name} at ${merchantName} restaurant. `;
+    const contextualDesc = {
+      rainy: "Warm, cozy lighting, soft ambiance perfect for indoor dining",
+      hot: "Fresh, cool presentation with ice and condensation, bright daylight",
+      cold: "Warm, appetizing steam, rich golden tones",
+      clear: "Natural sunlight, vibrant colors, appetizing presentation",
+    };
+
+    const description = contextualDesc[weather] || "Professional restaurant lighting";
+    
+    return (
+      basePrompt +
+      description +
+      ". " +
+      item.name +
+      " as the main focus. Mouth-watering presentation. " +
+      "Professional food photography, cinematic lighting, 4k. Text-free, no words, no text, clean empty space in the center."
+    );
+  }
+
+  generateProactiveAlert(paytmGatewayData, realTimeContext, inventorySurplus, merchantName) {
+    // Analyze the sales drop
+    const { dropPercentage, isSevere } = this.analyzeSalesDrop(
+      paytmGatewayData.currentTransactions,
+      paytmGatewayData.historicalAverage
+    );
+
+    // Select best item
+    const selectedItem = this.selectBestItemForPromotion(inventorySurplus, realTimeContext);
+
+    if (!selectedItem) {
+      return {
+        error: "No surplus items available for promotion",
+        status: "failed",
+      };
+    }
+
+    // Generate discount
+    const discountInfo = this.generateDiscountOffer(
+      selectedItem,
+      isSevere ? "critical" : "moderate"
+    );
+
+    // Generate reasoning
+    const weatherReason = {
+      rainy: "customers are avoiding going out due to rain",
+      hot: "foot traffic is lower during peak heat hours",
+      cold: "fewer people are venturing outside in cold weather",
+      clear: "unexpected low sales despite good weather",
+    };
+
+    const agentReasoning =
+      `Detected a ${dropPercentage.toFixed(1)}% drop in Paytm transactions. ` +
+      `${weatherReason[realTimeContext.weather] || "sales patterns show a decline"}. ` +
+      `${selectedItem.name} has high inventory surplus (${selectedItem.quantity} units). ` +
+      `Offering ${discountInfo.offerText} to drive quick conversions and recover revenue.`;
+
+    // Generate notification message
+    const notificationMessage =
+      `👋 Hey! I noticed your Paytm scans are down ${dropPercentage.toFixed(1)}% today. ` +
+      `${realTimeContext.weather === "rainy" ? "The rain might be keeping customers away." : ""} ` +
+      `Let me help! I'm suggesting a flash deal on ${selectedItem.name}: ${discountInfo.offerText}. ` +
+      `This should attract customers back. Ready to launch? 🚀`;
+
+    // Generate DALL-E prompt
+    const dallePrompt = this.generateDALLEPrompt(
+      selectedItem,
+      realTimeContext.weather,
+      merchantName
+    );
+
+    // Return the required JSON format
+    return {
+      notification_message: notificationMessage,
+      agent_reasoning: agentReasoning,
+      selected_item: selectedItem.name,
+      discount_offer: discountInfo.offerText,
+      dalle_background_prompt: dallePrompt,
+    };
+  }
 }
 
 module.exports = VyaparAI;
