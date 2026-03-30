@@ -7,6 +7,10 @@ import google.generativeai as genai
 from dotenv import load_dotenv
 import json
 import logging
+from contextlib import asynccontextmanager
+
+# Import Python VyaparMonitor (replaces node-schedule)
+from vyapar_monitor import init_vyapar_monitor, get_vyapar_monitor
 
 load_dotenv()
 
@@ -35,6 +39,32 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ==================== VYAPAR MONITOR STARTUP/SHUTDOWN ====================
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize Python VyaparMonitor on app startup"""
+    logger.info("\n" + "="*60)
+    logger.info("🚀 Starting Paytm OmniMatch - Python Backend")
+    logger.info("="*60)
+    
+    # Initialize merchants config to monitor
+    merchants_config = [
+        {"id": "merchant_coimbatore_001", "name": "Coimbatore Spice House"},
+        {"id": "merchant_bangalore_001", "name": "Bangalore Brew Co"},
+    ]
+    
+    # Initialize and start VyaparMonitor (Python replacement for node-schedule)
+    init_vyapar_monitor(merchants_config)
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Stop VyaparMonitor on app shutdown"""
+    monitor = get_vyapar_monitor()
+    if monitor:
+        monitor.stop()
+        logger.info("⏹️ VyaparMonitor stopped")
 
 # ==================== DATA MODELS ====================
 
@@ -246,6 +276,14 @@ Return ONLY the refined prompt text, nothing else."""
         raise HTTPException(status_code=500, detail=f"Prompt validation failed: {str(e)}")
 
 # ==================== HEALTH CHECK ====================
+
+@app.get("/api/monitor/status")
+async def monitor_status():
+    """Get VyaparMonitor status"""
+    monitor = get_vyapar_monitor()
+    if not monitor:
+        return {"status": "not_initialized"}
+    return monitor.get_status()
 
 @app.get("/health")
 async def health_check():
