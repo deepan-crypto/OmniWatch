@@ -5,23 +5,21 @@ import PaytmAdGenerator from './PaytmAdGenerator';
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 export default function PaytmEnvironment() {
-  const [activeAgent, setActiveAgent] = useState('vyapar');
+  const [userMode, setUserMode] = useState('home'); // home, scout, vyapar, deals, profile
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-
+  
   // Vyapar AI State
   const [proactiveAlert, setProactiveAlert] = useState(null);
   const [generatedDeal, setGeneratedDeal] = useState(null);
   const [paytmMetrics, setPaytmMetrics] = useState({
     currentTransactions: 15,
-    historicalAverage: 45,
-    dropPercentage: 66.7
+    historicalAverage: 45
   });
   const [contextData, setContextData] = useState({
     weather: 'rainy',
     footTraffic: 'low',
-    hour: new Date().getHours(),
-    dayOfWeek: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][new Date().getDay()]
+    hour: new Date().getHours()
   });
 
   // Scout AI State
@@ -31,6 +29,7 @@ export default function PaytmEnvironment() {
 
   // ONDC Registry State
   const [activeDealcs, setActiveDealcs] = useState([]);
+  const [filteredDealcs, setFilteredDealcs] = useState([]);
 
   // Mock inventory surplus
   const inventorySurplus = [
@@ -40,23 +39,22 @@ export default function PaytmEnvironment() {
     { id: 'item_004', name: 'Chicken Biryani', category: 'rice', price: 350, quantity: 45, margin: 50 }
   ];
 
-  // Fetch Active Dealcs
   useEffect(() => {
-    if (activeAgent === 'registry') {
+    if (userMode === 'deals') {
       fetchActiveDealcs();
     }
-  }, [activeAgent]);
+  }, [userMode]);
 
   const fetchActiveDealcs = async () => {
     try {
       const response = await axios.get(`${API_BASE}/api/vyapar/deals/active`);
       setActiveDealcs(response.data.dealcs || []);
+      setFilteredDealcs(response.data.dealcs || []);
     } catch (err) {
       console.error('Failed to fetch deals:', err);
     }
   };
 
-  // Vyapar AI: Generate Proactive Alert
   const handleProactiveAlert = async () => {
     setLoading(true);
     setError(null);
@@ -73,8 +71,6 @@ export default function PaytmEnvironment() {
 
       const alertData = response.data.result;
       setProactiveAlert(alertData);
-
-      // Convert alert to deal format for canvas
       setGeneratedDeal({
         selected_item: alertData.selected_item,
         discount_offer: alertData.discount_offer,
@@ -83,13 +79,12 @@ export default function PaytmEnvironment() {
         qr_code_url: 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=paytm://upi/pay?pa=merchant@paytm'
       });
     } catch (err) {
-      setError('Failed to generate proactive alert: ' + err.message);
+      setError('Failed to generate alert: ' + err.message);
     } finally {
       setLoading(false);
     }
   };
 
-  // Scout AI: Query for Recommendations
   const handleScoutQuery = async () => {
     setLoading(true);
     setError(null);
@@ -112,276 +107,328 @@ export default function PaytmEnvironment() {
   };
 
   return (
-    <div style={{ backgroundColor: '#f5f5f5', minHeight: '100vh' }}>
-      {/* Paytm Header */}
-      <div style={{ backgroundColor: '#002970', color: 'white', padding: '20px', textAlign: 'center' }}>
-        <h1 style={{ margin: '0 0 5px 0', fontSize: '32px' }}>
-          <span style={{ color: '#00BAF2' }}>Paytm</span> OmniMatch
-        </h1>
-        <p style={{ margin: '0', opacity: 0.9, fontSize: '14px' }}>
-          🤖 Vyapar AI (Merchant) + 🔍 Scout AI (Consumer) + 📋 ONDC Registry
-        </p>
+    <div style={{ maxWidth: '500px', margin: '0 auto', backgroundColor: '#fff', minHeight: '100vh', fontFamily: 'Arial, sans-serif', boxShadow: '0 0 20px rgba(0,0,0,0.1)' }}>
+      {/* Paytm Header Bar */}
+      <div style={{ backgroundColor: '#002970', color: 'white', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h2 style={{ margin: '0', fontSize: '20px' }}>
+          <span style={{ color: '#00BAF2' }}>Paytm</span>
+        </h2>
+        <div style={{ fontSize: '12px', color: '#ccc' }}>ONDC Enabled</div>
       </div>
 
-      {/* Agent Navigation */}
-      <div style={{ backgroundColor: 'white', borderBottom: '1px solid #e0e0e0', padding: '10px', display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
+      {/* Bottom Navigation */}
+      <div style={{ position: 'fixed', bottom: '0', left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: '500px', backgroundColor: 'white', borderTop: '1px solid #e0e0e0', display: 'flex', justifyContent: 'space-around', padding: '8px 0' }}>
         {[
-          { id: 'vyapar', label: '🤖 Vyapar AI (Merchant)', color: '#FF6B35' },
-          { id: 'scout', label: '🔍 Scout AI (Consumer)', color: '#004E89' },
-          { id: 'registry', label: '📋 ONDC Registry', color: '#00AA00' }
-        ].map(agent => (
+          { mode: 'home', label: '🏠 Home', color: '#002970' },
+          { mode: 'scout', label: '🔍 Deals', color: '#004E89' },
+          { mode: 'vyapar', label: '💰 Business', color: '#FF6B35' },
+          { mode: 'deals', label: '📋 Live', color: '#00AA00' },
+          { mode: 'profile', label: '👤 Profile', color: '#666' }
+        ].map(item => (
           <button
-            key={agent.id}
-            onClick={() => setActiveAgent(agent.id)}
+            key={item.mode}
+            onClick={() => setUserMode(item.mode)}
             style={{
-              padding: '10px 20px',
-              backgroundColor: activeAgent === agent.id ? agent.color : '#f0f0f0',
-              color: activeAgent === agent.id ? 'white' : '#333',
+              flex: 1,
+              padding: '8px',
+              backgroundColor: 'transparent',
               border: 'none',
-              borderRadius: '6px',
+              color: userMode === item.mode ? item.color : '#999',
+              fontSize: '12px',
+              fontWeight: userMode === item.mode ? 'bold' : 'normal',
               cursor: 'pointer',
-              fontWeight: 'bold',
-              fontSize: '14px'
+              borderTop: userMode === item.mode ? `3px solid ${item.color}` : 'none'
             }}
           >
-            {agent.label}
+            {item.label}
           </button>
         ))}
       </div>
 
-      {/* Content */}
-      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '30px 20px' }}>
+      {/* Content Area */}
+      <div style={{ paddingBottom: '80px', paddingTop: '16px' }}>
         {error && (
-          <div style={{ backgroundColor: '#ffebee', color: '#c62828', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
+          <div style={{ backgroundColor: '#ffebee', color: '#c62828', padding: '12px 16px', margin: '12px 16px', borderRadius: '6px', fontSize: '13px' }}>
             ⚠️ {error}
           </div>
         )}
 
-        {/* VYAPAR AI - Merchant Agent */}
-        {activeAgent === 'vyapar' && (
-          <div>
-            <h2>📊 Vyapar AI - Merchant Dashboard</h2>
-            <p style={{ color: '#666' }}>Monitor Paytm transactions and automatically generate flash deals when sales drop</p>
+        {/* HOME PAGE */}
+        {userMode === 'home' && (
+          <div style={{ padding: '16px' }}>
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', color: '#333' }}>Welcome, User 👋</h3>
+            
+            {/* Quick Actions */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
+              <div
+                onClick={() => setUserMode('scout')}
+                style={{
+                  backgroundColor: '#e3f2fd',
+                  padding: '16px',
+                  borderRadius: '8px',
+                  textAlign: 'center',
+                  cursor: 'pointer',
+                  border: '2px solid #004E89'
+                }}
+              >
+                <div style={{ fontSize: '28px', marginBottom: '8px' }}>🔍</div>
+                <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#004E89' }}>Find Deals</div>
+                <div style={{ fontSize: '11px', color: '#666' }}>Via Scout AI</div>
+              </div>
 
-            {/* Sales Metrics */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', marginBottom: '30px' }}>
-              <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-                <p style={{ margin: '0 0 10px 0', color: '#666', fontSize: '14px' }}>Current Paytm Transactions</p>
-                <h3 style={{ margin: '0', fontSize: '32px', color: '#FF6B35' }}>{paytmMetrics.currentTransactions}</h3>
+              <div
+                onClick={() => setUserMode('vyapar')}
+                style={{
+                  backgroundColor: '#fff3cd',
+                  padding: '16px',
+                  borderRadius: '8px',
+                  textAlign: 'center',
+                  cursor: 'pointer',
+                  border: '2px solid #FF6B35'
+                }}
+              >
+                <div style={{ fontSize: '28px', marginBottom: '8px' }}>💰</div>
+                <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#FF6B35' }}>My Business</div>
+                <div style={{ fontSize: '11px', color: '#666' }}>Vyapar AI</div>
+              </div>
+            </div>
+
+            {/* Featured Dealcs */}
+            <h4 style={{ margin: '0 0 12px 0', fontSize: '14px', color: '#333' }}>Featured Offers 🎉</h4>
+            <div style={{ backgroundColor: '#f5f5f5', padding: '12px', borderRadius: '6px', textAlign: 'center', color: '#666', fontSize: '12px' }}>
+              <button onClick={() => { setUserMode('deals'); fetchActiveDealcs(); }} style={{ backgroundColor: '#002970', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>
+                View All Live Deals
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* SCOUT AI - CONSUMER */}
+        {userMode === 'scout' && (
+          <div style={{ padding: '16px' }}>
+            <h3 style={{ margin: '0 0 12px 0', fontSize: '18px', color: '#004E89' }}>🔍 Scout AI - Find Deals</h3>
+            <p style={{ margin: '0 0 12px 0', fontSize: '12px', color: '#666' }}>Tell Scout AI what you're looking for</p>
+
+            <textarea
+              value={consumerQuery}
+              onChange={(e) => setConsumerQuery(e.target.value)}
+              placeholder="e.g., Spicy biryani near me, hot tea during rain..."
+              style={{
+                width: '100%',
+                minHeight: '80px',
+                padding: '10px',
+                borderRadius: '6px',
+                border: '1px solid #00BAF2',
+                fontFamily: 'Arial',
+                fontSize: '13px',
+                boxSizing: 'border-box'
+              }}
+            />
+
+            <button
+              onClick={handleScoutQuery}
+              disabled={loading}
+              style={{
+                width: '100%',
+                padding: '12px',
+                backgroundColor: '#004E89',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                fontWeight: 'bold',
+                marginTop: '12px',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                fontSize: '14px'
+              }}
+            >
+              {loading ? '🔍 Searching...' : '🔍 Find Best Deals'}
+            </button>
+
+            {recommendations && (
+              <div style={{ backgroundColor: '#e3f2fd', padding: '12px', borderRadius: '6px', marginTop: '16px', border: '2px solid #004E89' }}>
+                <h4 style={{ margin: '0 0 10px 0', color: '#004E89', fontSize: '13px' }}>✨ Perfect Match!</h4>
+                <p style={{ margin: '4px 0', fontSize: '12px' }}><strong>🏪 {recommendations.merchant_name}</strong></p>
+                <p style={{ margin: '4px 0', fontSize: '12px' }}><strong>🍽️ {recommendations.item_name}</strong></p>
+                <p style={{ margin: '4px 0', fontSize: '12px' }}><strong>💵 ₹{recommendations.final_price}</strong></p>
+                <p style={{ margin: '4px 0', fontSize: '11px', color: '#666' }}>💬 {recommendations.reasoning}</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* VYAPAR AI - MERCHANT */}
+        {userMode === 'vyapar' && (
+          <div style={{ padding: '16px' }}>
+            <h3 style={{ margin: '0 0 12px 0', fontSize: '18px', color: '#FF6B35' }}>📊 Vyapar AI - My Business</h3>
+            <p style={{ margin: '0 0 16px 0', fontSize: '12px', color: '#666' }}>Monitor sales & auto-generate flash deals</p>
+
+            {/* Metrics */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+              <div style={{ backgroundColor: '#fff3cd', padding: '12px', borderRadius: '6px', textAlign: 'center' }}>
+                <p style={{ margin: '0', fontSize: '11px', color: '#666' }}>Current Paytm</p>
                 <input
                   type="number"
                   value={paytmMetrics.currentTransactions}
                   onChange={(e) => setPaytmMetrics({ ...paytmMetrics, currentTransactions: parseInt(e.target.value) || 0 })}
-                  style={{ width: '100%', padding: '8px', marginTop: '10px', borderRadius: '4px', border: '1px solid #ddd' }}
+                  style={{ width: '100%', padding: '6px', marginTop: '4px', textAlign: 'center', fontSize: '12px' }}
                 />
               </div>
-
-              <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-                <p style={{ margin: '0 0 10px 0', color: '#666', fontSize: '14px' }}>Historical Average</p>
-                <h3 style={{ margin: '0', fontSize: '32px', color: '#004E89' }}>{paytmMetrics.historicalAverage}</h3>
+              <div style={{ backgroundColor: '#fff3cd', padding: '12px', borderRadius: '6px', textAlign: 'center' }}>
+                <p style={{ margin: '0', fontSize: '11px', color: '#666' }}>Historical Avg</p>
                 <input
                   type="number"
                   value={paytmMetrics.historicalAverage}
                   onChange={(e) => setPaytmMetrics({ ...paytmMetrics, historicalAverage: parseInt(e.target.value) || 0 })}
-                  style={{ width: '100%', padding: '8px', marginTop: '10px', borderRadius: '4px', border: '1px solid #ddd' }}
+                  style={{ width: '100%', padding: '6px', marginTop: '4px', textAlign: 'center', fontSize: '12px' }}
                 />
               </div>
+            </div>
 
-              <div style={{ backgroundColor: '#ffebee', padding: '20px', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-                <p style={{ margin: '0 0 10px 0', color: '#666', fontSize: '14px' }}>Sales Drop %</p>
-                <h3 style={{ margin: '0', fontSize: '32px', color: '#c62828' }}>
-                  {((paytmMetrics.historicalAverage - paytmMetrics.currentTransactions) / paytmMetrics.historicalAverage * 100).toFixed(1)}%
-                </h3>
+            {/* Context */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 'bold', marginBottom: '4px' }}>Weather</label>
+                <select
+                  value={contextData.weather}
+                  onChange={(e) => setContextData({ ...contextData, weather: e.target.value })}
+                  style={{ width: '100%', padding: '6px', fontSize: '12px', borderRadius: '4px', border: '1px solid #ddd' }}
+                >
+                  <option value="rainy">🌧️ Rainy</option>
+                  <option value="clear">☀️ Clear</option>
+                  <option value="hot">🔥 Hot</option>
+                  <option value="cold">❄️ Cold</option>
+                </select>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 'bold', marginBottom: '4px' }}>Foot Traffic</label>
+                <select
+                  value={contextData.footTraffic}
+                  onChange={(e) => setContextData({ ...contextData, footTraffic: e.target.value })}
+                  style={{ width: '100%', padding: '6px', fontSize: '12px', borderRadius: '4px', border: '1px solid #ddd' }}
+                >
+                  <option value="low">📉 Low</option>
+                  <option value="moderate">➡️ Moderate</option>
+                  <option value="high">📈 High</option>
+                </select>
               </div>
             </div>
 
-            {/* Real-Time Context */}
-            <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '8px', marginBottom: '20px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-              <h3>⚙️ Real-Time Context</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px' }}>
-                <div>
-                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Weather</label>
-                  <select
-                    value={contextData.weather}
-                    onChange={(e) => setContextData({ ...contextData, weather: e.target.value })}
-                    style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
-                  >
-                    <option value="rainy">🌧️ Rainy</option>
-                    <option value="clear">☀️ Clear</option>
-                    <option value="hot">🔥 Hot</option>
-                    <option value="cold">❄️ Cold</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Foot Traffic</label>
-                  <select
-                    value={contextData.footTraffic}
-                    onChange={(e) => setContextData({ ...contextData, footTraffic: e.target.value })}
-                    style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
-                  >
-                    <option value="low">📉 Low</option>
-                    <option value="moderate">➡️ Moderate</option>
-                    <option value="high">📈 High</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            {/* Trigger Alert Button */}
             <button
               onClick={handleProactiveAlert}
               disabled={loading}
               style={{
                 width: '100%',
-                padding: '15px',
+                padding: '12px',
                 backgroundColor: '#FF6B35',
                 color: 'white',
                 border: 'none',
-                borderRadius: '8px',
-                fontSize: '16px',
+                borderRadius: '6px',
                 fontWeight: 'bold',
+                marginBottom: '16px',
                 cursor: loading ? 'not-allowed' : 'pointer',
-                marginBottom: '20px'
+                fontSize: '14px'
               }}
             >
-              {loading ? '⏳ Analyzing...' : '🚨 Check for Sales Drop & Generate Alert'}
+              {loading ? '⏳ Analyzing...' : '🚨 Generate Flash Deal'}
             </button>
 
-            {/* Alert Display */}
             {proactiveAlert && (
-              <div style={{ backgroundColor: '#fff3cd', padding: '20px', borderRadius: '8px', marginBottom: '20px', border: '2px solid #FF6B35' }}>
-                <h3 style={{ marginTop: '0', color: '#FF6B35' }}>📢 Vyapar AI Alert</h3>
-                <p style={{ fontSize: '16px', fontStyle: 'italic', margin: '15px 0' }}>
+              <div style={{ backgroundColor: '#fff3cd', padding: '12px', borderRadius: '6px', border: '2px solid #FF6B35' }}>
+                <p style={{ margin: '0 0 8px 0', fontSize: '12px', fontStyle: 'italic', color: '#333' }}>
                   "{proactiveAlert.notification_message}"
                 </p>
-                <div style={{ backgroundColor: 'white', padding: '15px', borderRadius: '6px', marginBottom: '15px' }}>
-                  <p><strong>Agent Reasoning:</strong></p>
-                  <p style={{ fontSize: '14px', color: '#555' }}>{proactiveAlert.agent_reasoning}</p>
-                </div>
-                <p><strong>📦 Recommended Item:</strong> {proactiveAlert.selected_item}</p>
-                <p><strong>💰 Discount Offer:</strong> {proactiveAlert.discount_offer}</p>
+                <p style={{ margin: '6px 0', fontSize: '11px', color: '#666' }}>
+                  <strong>Item:</strong> {proactiveAlert.selected_item}
+                </p>
+                <p style={{ margin: '6px 0', fontSize: '11px', color: '#666' }}>
+                  <strong>Offer:</strong> {proactiveAlert.discount_offer}
+                </p>
               </div>
             )}
 
-            {/* Canvas Ad Generator */}
             {generatedDeal && (
-              <div style={{ marginTop: '30px' }}>
-                <h3>📱 Generated Promotional Asset</h3>
+              <div style={{ marginTop: '16px' }}>
+                <h4 style={{ margin: '0 0 8px 0', fontSize: '13px' }}>📱 Your Ad Asset</h4>
                 <PaytmAdGenerator aiDealData={generatedDeal} />
               </div>
             )}
           </div>
         )}
 
-        {/* SCOUT AI - Consumer Agent */}
-        {activeAgent === 'scout' && (
-          <div>
-            <h2>🔍 Scout AI - Consumer Deal Finder</h2>
-            <p style={{ color: '#666' }}>Describe what you're looking for, Scout AI finds the best deals nearby</p>
-
-            <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '8px', marginBottom: '20px' }}>
-              <label style={{ display: 'block', marginBottom: '10px', fontWeight: 'bold' }}>What are you looking for?</label>
-              <textarea
-                value={consumerQuery}
-                onChange={(e) => setConsumerQuery(e.target.value)}
-                placeholder="e.g., I want spicy food near me, I'm in the mood for biryani..."
-                style={{
-                  width: '100%',
-                  minHeight: '80px',
-                  padding: '10px',
-                  borderRadius: '6px',
-                  border: '1px solid #ddd',
-                  fontFamily: 'Arial'
-                }}
-              />
-              <button
-                onClick={handleScoutQuery}
-                disabled={loading}
-                style={{
-                  marginTop: '10px',
-                  padding: '12px 24px',
-                  backgroundColor: '#004E89',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  fontWeight: 'bold',
-                  cursor: loading ? 'not-allowed' : 'pointer'
-                }}
-              >
-                {loading ? '🔍 Searching...' : '🔍 Find Best Deals'}
-              </button>
-            </div>
-
-            {recommendations && (
-              <div style={{ backgroundColor: '#e3f2fd', padding: '20px', borderRadius: '8px', border: '2px solid #004E89' }}>
-                <h3 style={{ marginTop: '0', color: '#004E89' }}>✨ Scout AI Recommendations</h3>
-                <div style={{ backgroundColor: 'white', padding: '15px', borderRadius: '6px' }}>
-                  <p><strong>Merchant:</strong> {recommendations.merchant_name}</p>
-                  <p><strong>Location:</strong> {recommendations.location}</p>
-                  <p><strong>Item:</strong> {recommendations.item_name}</p>
-                  <p><strong>Discount:</strong> {recommendations.discount}%</p>
-                  <p><strong>Price:</strong> ₹{recommendations.final_price}</p>
-                  <p><strong>Why this deal?</strong> {recommendations.reasoning}</p>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ONDC REGISTRY */}
-        {activeAgent === 'registry' && (
-          <div>
-            <h2>📋 ONDC Registry - Active Dealcs</h2>
-            <p style={{ color: '#666' }}>All flash deals currently live in the Open Network for Commerce</p>
+        {/* LIVE DEALS - ONDC REGISTRY */}
+        {userMode === 'deals' && (
+          <div style={{ padding: '16px' }}>
+            <h3 style={{ margin: '0 0 12px 0', fontSize: '18px', color: '#00AA00' }}>📋 Live ONDC Dealcs</h3>
+            <p style={{ margin: '0 0 12px 0', fontSize: '12px', color: '#666' }}>All available flash deals</p>
 
             <button
               onClick={fetchActiveDealcs}
               style={{
-                padding: '10px 20px',
+                width: '100%',
+                padding: '8px',
                 backgroundColor: '#00AA00',
                 color: 'white',
                 border: 'none',
                 borderRadius: '6px',
                 cursor: 'pointer',
-                marginBottom: '20px'
+                marginBottom: '12px',
+                fontSize: '12px',
+                fontWeight: 'bold'
               }}
             >
-              🔄 Refresh Dealcs
+              🔄 Refresh
             </button>
 
-            {activeDealcs.length === 0 ? (
-              <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '8px', textAlign: 'center', color: '#999' }}>
-                No active dealcs yet. Generate one from Vyapar AI dashboard!
+            {filteredDealcs.length === 0 ? (
+              <div style={{ backgroundColor: '#f0f0f0', padding: '16px', borderRadius: '6px', textAlign: 'center', color: '#999', fontSize: '12px' }}>
+                No live deals yet
               </div>
             ) : (
-              <div style={{ display: 'grid', gap: '15px' }}>
-                {activeDealcs.map((deal) => (
-                  <div key={deal.id} style={{ backgroundColor: 'white', padding: '15px', borderRadius: '8px', border: '1px solid #e0e0e0' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+              <div style={{ display: 'grid', gap: '12px' }}>
+                {filteredDealcs.map((deal) => (
+                  <div key={deal.id} style={{ backgroundColor: '#f9f9f9', padding: '12px', borderRadius: '6px', border: '1px solid #e0e0e0' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '8px' }}>
                       <div>
-                        <h4 style={{ margin: '0 0 5px 0', color: '#333' }}>{deal.itemName}</h4>
-                        <p style={{ margin: '5px 0', fontSize: '14px', color: '#666' }}>
-                          {deal.merchantName} • {deal.location}
-                        </p>
-                        <p style={{ margin: '5px 0', fontSize: '14px' }}>
-                          <strong>₹{deal.finalPrice}</strong>
-                          <span style={{ textDecoration: 'line-through', marginLeft: '10px', color: '#999' }}>₹{deal.originalPrice}</span>
-                        </p>
+                        <h5 style={{ margin: '0', fontSize: '13px', color: '#333' }}>{deal.itemName}</h5>
+                        <p style={{ margin: '2px 0', fontSize: '11px', color: '#666' }}>{deal.merchantName}</p>
                       </div>
-                      <div style={{ textAlign: 'right' }}>
-                        <div style={{ backgroundColor: '#FF6B35', color: 'white', padding: '8px 12px', borderRadius: '4px', fontWeight: 'bold' }}>
-                          {deal.discountPercentage}% OFF
-                        </div>
-                        <span style={{ display: 'block', fontSize: '12px', color: '#666', marginTop: '5px', backgroundColor: '#f0f0f0', padding: '4px 8px', borderRadius: '4px' }}>
-                          {deal.status}
-                        </span>
+                      <div style={{ backgroundColor: '#FF6B35', color: 'white', padding: '4px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold' }}>
+                        {deal.discountPercentage}% OFF
                       </div>
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#333' }}>
+                      <strong>₹{deal.finalPrice}</strong> <span style={{ textDecoration: 'line-through', color: '#999', marginLeft: '8px' }}>₹{deal.originalPrice}</span>
                     </div>
                   </div>
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {/* PROFILE */}
+        {userMode === 'profile' && (
+          <div style={{ padding: '16px' }}>
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', color: '#333' }}>👤 My Profile</h3>
+            <div style={{ backgroundColor: '#f5f5f5', padding: '16px', borderRadius: '8px', textAlign: 'center' }}>
+              <div style={{ fontSize: '48px', marginBottom: '8px' }}>👤</div>
+              <p style={{ margin: '0', fontSize: '14px', fontWeight: 'bold' }}>User {userId.slice(-5)}</p>
+              <p style={{ margin: '4px 0', fontSize: '12px', color: '#666' }}>Premium Member</p>
+              <button
+                style={{
+                  marginTop: '12px',
+                  padding: '8px 16px',
+                  backgroundColor: '#002970',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '12px'
+                }}
+              >
+                Edit Profile
+              </button>
+            </div>
           </div>
         )}
       </div>
