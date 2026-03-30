@@ -172,6 +172,71 @@ Returns last 50 transactions (created, completed, expired deals).
 
 ---
 
+### 7. Proactive Sales Drop Alert (Vyapar AI)
+
+**Endpoint**: `POST /api/vyapar/merchant/proactive-alert`
+
+This endpoint monitors Paytm transaction volumes and automatically generates an alert with a flash deal recommendation when sales drop significantly.
+
+```json
+{
+  "merchantName": "Coimbatore Spice House",
+  "paytmGatewayData": {
+    "currentTransactions": 15,
+    "historicalAverage": 45
+  },
+  "realTimeContext": {
+    "weather": "rainy",
+    "footTraffic": "low",
+    "hour": 18,
+    "dayOfWeek": "Thursday"
+  },
+  "inventorySurplus": [
+    {
+      "id": "item_001",
+      "name": "Masala Tea",
+      "category": "beverages",
+      "price": 40,
+      "quantity": 75,
+      "margin": 25
+    },
+    {
+      "id": "item_002",
+      "name": "Gobi Manchurian",
+      "category": "food",
+      "price": 250,
+      "quantity": 95,
+      "margin": 40
+    }
+  ]
+}
+```
+
+**Expected Response** (Valid JSON only):
+```json
+{
+  "success": true,
+  "message": "Proactive alert generated successfully",
+  "result": {
+    "notification_message": "👋 Hey! I noticed your Paytm scans are down 66.7% today. The rain might be keeping customers away. Let me help! I'm suggesting a flash deal on Masala Tea: Flat ₹15 OFF. This should attract customers back. 🚀",
+    "agent_reasoning": "Detected a 66.7% drop in Paytm transactions. customers are avoiding going out due to rain. Masala Tea has high inventory surplus (75 units). Offering Flat ₹15 OFF to drive quick conversions and recover revenue.",
+    "selected_item": "Masala Tea",
+    "discount_offer": "Flat ₹15 OFF",
+    "dalle_background_prompt": "High-quality promotional food photography for Masala Tea at Coimbatore Spice House restaurant. Warm, cozy lighting, soft ambiance perfect for indoor dining. Masala Tea as the main focus. Mouth-watering presentation. Professional food photography, cinematic lighting, 4k. Text-free, no words, no text, clean empty space in the center."
+  }
+}
+```
+
+**Key Points**:
+- ✅ Outputs ONLY valid JSON
+- ✅ DALL-E prompt ends with the required text-free specification
+- ✅ Includes friendly notification_message for merchant
+- ✅ Includes agent_reasoning for transparency
+- ✅ Selects optimal item based on context (weather, inventory, margin)
+- ✅ Calculates discount based on item margin and severity of sales drop
+
+---
+
 ## 🔍 SCOUT AI (CONSUMER) ENDPOINTS
 
 ### 1. Create Consumer Session
